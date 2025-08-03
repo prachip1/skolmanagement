@@ -72,16 +72,29 @@ ALTER TABLE public.enrollments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.grades ENABLE ROW LEVEL SECURITY;
 
--- RLS Policies for users table
+-- RLS Policies for users table (FIXED - No infinite recursion)
+-- Allow users to insert their own profile during signup
+CREATE POLICY "Users can insert their own profile" ON public.users
+    FOR INSERT WITH CHECK (auth.uid() = id);
+
+-- Allow users to view their own profile
 CREATE POLICY "Users can view their own profile" ON public.users
     FOR SELECT USING (auth.uid() = id);
 
+-- Allow users to update their own profile
+CREATE POLICY "Users can update their own profile" ON public.users
+    FOR UPDATE USING (auth.uid() = id);
+
+-- Allow admins to view all users (using auth.jwt() to avoid recursion)
 CREATE POLICY "Admins can view all users" ON public.users
+    FOR SELECT USING (
+        (SELECT raw_user_meta_data->>'role' FROM auth.users WHERE id = auth.uid()) = 'admin'
+    );
+
+-- Allow admins to manage all users
+CREATE POLICY "Admins can manage all users" ON public.users
     FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM public.users 
-            WHERE id = auth.uid() AND role = 'admin'
-        )
+        (SELECT raw_user_meta_data->>'role' FROM auth.users WHERE id = auth.uid()) = 'admin'
     );
 
 -- RLS Policies for courses table
@@ -91,10 +104,7 @@ CREATE POLICY "Anyone can view courses" ON public.courses
 CREATE POLICY "Teachers can manage their courses" ON public.courses
     FOR ALL USING (
         teacher_id = auth.uid() OR
-        EXISTS (
-            SELECT 1 FROM public.users 
-            WHERE id = auth.uid() AND role = 'admin'
-        )
+        (SELECT raw_user_meta_data->>'role' FROM auth.users WHERE id = auth.uid()) = 'admin'
     );
 
 -- RLS Policies for enrollments table
@@ -111,10 +121,7 @@ CREATE POLICY "Teachers can view enrollments in their courses" ON public.enrollm
 
 CREATE POLICY "Admins can manage all enrollments" ON public.enrollments
     FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM public.users 
-            WHERE id = auth.uid() AND role = 'admin'
-        )
+        (SELECT raw_user_meta_data->>'role' FROM auth.users WHERE id = auth.uid()) = 'admin'
     );
 
 -- RLS Policies for attendance table
@@ -131,10 +138,7 @@ CREATE POLICY "Teachers can manage attendance in their courses" ON public.attend
 
 CREATE POLICY "Admins can manage all attendance" ON public.attendance
     FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM public.users 
-            WHERE id = auth.uid() AND role = 'admin'
-        )
+        (SELECT raw_user_meta_data->>'role' FROM auth.users WHERE id = auth.uid()) = 'admin'
     );
 
 -- RLS Policies for grades table
@@ -151,23 +155,20 @@ CREATE POLICY "Teachers can manage grades in their courses" ON public.grades
 
 CREATE POLICY "Admins can manage all grades" ON public.grades
     FOR ALL USING (
-        EXISTS (
-            SELECT 1 FROM public.users 
-            WHERE id = auth.uid() AND role = 'admin'
-        )
+        (SELECT raw_user_meta_data->>'role' FROM auth.users WHERE id = auth.uid()) = 'admin'
     );
 
--- Function to handle user creation
+-- Function to handle user creation (UPDATED)
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.users (id, email, role, first_name, last_name)
-    VALUES (NEW.id, NEW.email, 'student', 'First', 'Last');
+    -- This function is no longer needed since we handle user creation in the signup function
+    -- But keeping it for backward compatibility
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Trigger to create user profile on signup
-CREATE TRIGGER on_auth_user_created
-    AFTER INSERT ON auth.users
-    FOR EACH ROW EXECUTE FUNCTION public.handle_new_user(); 
+-- Trigger to create user profile on signup (DISABLED - we handle this in the app)
+-- CREATE TRIGGER on_auth_user_created
+--     AFTER INSERT ON auth.users
+--     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user(); 

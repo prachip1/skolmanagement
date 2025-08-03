@@ -133,13 +133,13 @@ export default function SignupPage() {
               <div className="space-y-2">
                 <Label htmlFor="role">Role</Label>
                 <Select value={formData.role} onValueChange={(value) => handleChange('role', value)}>
-                  <SelectTrigger>
+                  <SelectTrigger className="hover:bg-gray-200 transition-colors duration-200">
                     <SelectValue placeholder="Select your role" />
                   </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="student">Student</SelectItem>
-                    <SelectItem value="teacher">Teacher</SelectItem>
-                    <SelectItem value="admin">Administrator</SelectItem>
+                  <SelectContent className="z-[100] bg-white border border-gray-200 shadow-lg text-black cursor-pointer">
+                    <SelectItem value="student" className="hover:bg-gray-200 focus:bg-gray-200 data-[highlighted]:bg-gray-200 cursor-pointer">Student</SelectItem>
+                    <SelectItem value="teacher" className="hover:bg-gray-200 focus:bg-gray-200 data-[highlighted]:bg-gray-200 cursor-pointer">Teacher</SelectItem>
+                    <SelectItem value="admin" className="hover:bg-gray-200 focus:bg-gray-200 data-[highlighted]:bg-gray-200 cursor-pointer">Administrator</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -198,7 +198,7 @@ export default function SignupPage() {
                 </div>
               </div>
 
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full border-1 border-black cursor-pointer hover:bg-gray-200" disabled={loading}>
                 {loading ? 'Creating account...' : 'Create Account'}
               </Button>
             </form>

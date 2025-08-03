@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { User } from '@supabase/supabase-js'
 import { supabase } from './supabase'
+import { createUserProfileSimple } from './auth-simple'
 
 interface AuthContextType {
   user: User | null
@@ -72,26 +73,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const signUp = async (email: string, password: string, role: string, firstName: string, lastName: string) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-    })
-    
-    if (error) throw error
+    try {
+      console.log('Starting signup process...', { email, role, firstName, lastName })
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            role: role,
+            first_name: firstName,
+            last_name: lastName,
+          }
+        }
+      })
+      
+      if (error) {
+        console.error('Auth signup error:', error)
+        throw error
+      }
 
-    if (data.user) {
-      // Create user profile
-      const { error: profileError } = await supabase
-        .from('users')
-        .insert({
-          id: data.user.id,
-          email,
-          role,
-          first_name: firstName,
-          last_name: lastName,
-        })
+      console.log('Auth signup successful:', data)
 
-      if (profileError) throw profileError
+             if (data.user) {
+         console.log('Creating user profile for:', data.user.id)
+         
+                   // Create user profile using simple approach
+          try {
+            const profileData = await createUserProfileSimple({
+              id: data.user.id,
+              email,
+              role,
+              first_name: firstName,
+              last_name: lastName,
+            })
+            console.log('Profile created successfully:', profileData)
+          } catch (profileError) {
+            console.error('Profile creation error:', profileError)
+            throw profileError
+          }
+       }
+    } catch (error) {
+      console.error('Signup error:', error)
+      throw error
     }
   }
 
